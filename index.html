@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Traffic Steering Simulation</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>Traffic Steering Simulation</h1>
+  <canvas id="networkCanvas" width="600" height="600"></canvas>
+  <br>
+  <button onclick="step()">Next Step</button>
+  <button onclick="runSimulation()">Run Simulation</button>
+  <button onclick="resetSimulation()">Reset</button>
+  <div class="policy-select">
+    <label>Policy: </label>
+      <select id="policySelect">
+        <option value="0">DEFAULT</option>
+        <option value="1">OFFLOAD</option>
+      </select>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
