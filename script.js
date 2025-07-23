@@ -193,7 +193,6 @@ function selectGnbForUE(ue) {
 }
 
 function step() {
-    if (stepCount == 25) return;
     stepCount++;
     
     // Reset and calculate current loads
