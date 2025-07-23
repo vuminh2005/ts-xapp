@@ -1,14 +1,13 @@
-const NUM_VOICE_UE = 10;  // Số lượng Voice UE
-const NUM_MBB_UE = 10;    // Số lượng MBB UE
+const NUM_VOICE_UE = 10;
+const NUM_MBB_UE = 10;
 const NUM_GNB = 5;
 const AREA_SIZE = 600;
-const VOICE_RADIUS = 75;    // Bán kính 75px cho Voice UE
-const MBB_RADIUS = 150;     // Bán kính 150px cho MBB UE
-const MB_PER_STEP = 2;      // Mỗi step truyền 2MB
+const VOICE_RADIUS = 75;
+const MBB_RADIUS = 150;
+const MB_PER_STEP = 2;
 
-// Dung lượng gNB (MB)
-const CENTER_CAPACITY = 70;    // gNB trung tâm
-const CORNER_CAPACITY = 30;    // gNB ở góc
+const CENTER_CAPACITY = 70;
+const CORNER_CAPACITY = 30;
 
 const ues = [];
 const gnbs = [];
@@ -16,16 +15,15 @@ const connections = {};
 const waitingQueue = {};
 let simulationInterval;
 let stepCount = 0;
-let currentPolicy = "0"; // Mặc định là DEFAULT (0)
+let currentPolicy = "0";
 
-// Định nghĩa các chính sách
 const POLICIES = {
-    "0": { // DEFAULT
+    "0": {
         id: "0",
         label: "DEFAULT",
         description: "All UEs connect to nearest available gNB"
     },
-    "1": { // OFFLOAD
+    "1": {
         id: "1",
         label: "OFFLOAD",
         description: "Voice UEs prefer corners, MBB UEs prefer center"
@@ -37,7 +35,6 @@ function randomInt(min, max) {
 }
 
 function initEnv() {
-    // Clear previous data
     ues.length = 0;
     gnbs.length = 0;
     for (let key in connections) delete connections[key];
@@ -45,40 +42,27 @@ function initEnv() {
     stepCount = 0;
     updateStatusDisplay();
 
-    // Initialize gNBs (positions remain the same)
     gnbs.push({ id: 0, x: AREA_SIZE / 2, y: AREA_SIZE / 2, load: 0, capacity: CENTER_CAPACITY, isCenter: true });
     gnbs.push({ id: 1, x: 75, y: 75, load: 0, capacity: CORNER_CAPACITY, isCenter: false });
     gnbs.push({ id: 2, x: AREA_SIZE - 75, y: 75, load: 0, capacity: CORNER_CAPACITY, isCenter: false });
     gnbs.push({ id: 3, x: 75, y: AREA_SIZE - 75, load: 0, capacity: CORNER_CAPACITY, isCenter: false });
     gnbs.push({ id: 4, x: AREA_SIZE - 75, y: AREA_SIZE - 75, load: 0, capacity: CORNER_CAPACITY, isCenter: false });
 
-    // Fixed positions for Voice UEs (10 UEs)
     const voicePositions = [
-        // Near gNB1 (2 UEs)
-        {x: 125, y: 100},           // x +25
-        {x: 100, y: 25},             // y +25
-
-        // Near gNB2 (2 UEs)
-        {x: AREA_SIZE - 75, y: 100},    // x -25
-        {x: AREA_SIZE - 50, y: 75},     // y +25
-
-        // Near gNB3 (2 UEs)
-        {x: 125, y: AREA_SIZE - 100},    // x +25
-        {x: 50, y: AREA_SIZE - 125},     // y -25
-
-        // Near gNB4 (2 UEs)
-        {x: AREA_SIZE - 100, y: AREA_SIZE - 25},  // y -25
-        {x: AREA_SIZE - 25, y: AREA_SIZE - 100},  // x -25
-
-        // Just outside corner radii (2 UEs)
-        {x: 225, y: 200},             // x +25
-        {x: AREA_SIZE - 200, y: AREA_SIZE - 200}  // y -25
+        {x: 125, y: 100},
+        {x: 100, y: 25},
+        {x: AREA_SIZE - 75, y: 100},
+        {x: AREA_SIZE - 50, y: 75},
+        {x: 125, y: AREA_SIZE - 100},
+        {x: 50, y: AREA_SIZE - 125},
+        {x: AREA_SIZE - 100, y: AREA_SIZE - 25},
+        {x: AREA_SIZE - 25, y: AREA_SIZE - 100},
+        {x: 225, y: 200},
+        {x: AREA_SIZE - 200, y: AREA_SIZE - 200}
     ];
 
-    // Gán dung lượng cố định cho từng Voice UE (đơn vị: MB)
     const voicePackets = [4, 6, 5, 3, 7, 5, 8, 4, 6, 5];
 
-    // Generate Voice UEs with fixed positions
     for (let i = 0; i < NUM_VOICE_UE; i++) {
         ues.push({
             id: `V${i}`,
@@ -90,28 +74,21 @@ function initEnv() {
         });
     }
 
-    // Fixed positions for MBB UEs (10 UEs)
     const mbbPositions = [
-        // Very close to center (4 UEs)
-        {x: AREA_SIZE / 2,     y: AREA_SIZE / 2 - 50},   // y -25
-        {x: AREA_SIZE / 2 + 75, y: AREA_SIZE / 2 - 100},       // x +25
-        {x: AREA_SIZE / 2,     y: AREA_SIZE / 2 + 125},   // y +25
-        {x: AREA_SIZE / 2 - 50, y: AREA_SIZE / 2 + 25},       // x -25
-
-        // Within 150px radius (4 UEs)
-        {x: AREA_SIZE / 2 + 75, y: AREA_SIZE / 2 - 25},  // x +75, y -25
-        {x: AREA_SIZE / 2 + 25, y: AREA_SIZE / 2 + 75},  // y +75
-        {x: AREA_SIZE / 2 - 75, y: AREA_SIZE / 2 + 50},  // x -75
-        {x: AREA_SIZE / 2 - 25, y: AREA_SIZE / 2 - 75},  // y -75
-
-        // Just outside 150px radius (2 UEs)
-        {x: AREA_SIZE / 2 + 210, y: AREA_SIZE / 2 - 50}, // y -25
-        {x: AREA_SIZE / 2 + 25,  y: AREA_SIZE / 2 + 210} // x +25
+        {x: AREA_SIZE / 2, y: AREA_SIZE / 2 - 50},
+        {x: AREA_SIZE / 2 + 75, y: AREA_SIZE / 2 - 100},
+        {x: AREA_SIZE / 2, y: AREA_SIZE / 2 + 125},
+        {x: AREA_SIZE / 2 - 50, y: AREA_SIZE / 2 + 25},
+        {x: AREA_SIZE / 2 + 75, y: AREA_SIZE / 2 - 25},
+        {x: AREA_SIZE / 2 + 25, y: AREA_SIZE / 2 + 75},
+        {x: AREA_SIZE / 2 - 75, y: AREA_SIZE / 2 + 50},
+        {x: AREA_SIZE / 2 - 25, y: AREA_SIZE / 2 - 75},
+        {x: AREA_SIZE / 2 + 210, y: AREA_SIZE / 2 - 50},
+        {x: AREA_SIZE / 2 + 25, y: AREA_SIZE / 2 + 210}
     ];
 
     const mbbPackets = [15, 18, 20, 14, 25, 22, 17, 19, 13, 21];
 
-    // Generate MBB UEs with fixed positions
     for (let i = 0; i < NUM_MBB_UE; i++) {
         ues.push({
             id: `M${i}`,
@@ -125,7 +102,7 @@ function initEnv() {
 }
 
 function selectGnbForUE(ue) {
-    if (currentPolicy === "0") { // DEFAULT policy
+    if (currentPolicy === "0") {
         const availableGnbs = gnbs
             .map(gnb => ({ ...gnb, dist: Math.hypot(ue.x - gnb.x, ue.y - gnb.y) }))
             .filter(gnb => gnb.dist <= 1000)
@@ -141,41 +118,35 @@ function selectGnbForUE(ue) {
 
         return availableGnbs.length > 0 ? availableGnbs[0].id : null;
     } 
-    else { // OFFLOAD policy
+    else {
         const centerGnb = gnbs.find(g => g.isCenter);
         const cornerGnbs = gnbs.filter(g => !g.isCenter);
         
         if (ue.type === "VOICE") {
-            // Strict behavior: only check nearest corner in radius
             const nearbyCorner = cornerGnbs.find(gnb => 
                 Math.hypot(ue.x - gnb.x, ue.y - gnb.y) <= VOICE_RADIUS
             );
             
             if (nearbyCorner) {
-                // Only consider this one corner, no fallback
                 if ((nearbyCorner.capacity - nearbyCorner.load) >= ue.packet) {
                     return nearbyCorner.id;
                 }
-                return null; // Will be put in waiting queue for this gNB
+                return null;
             }
             
-            // Outside all corner radii - only try center
             if ((centerGnb.capacity - centerGnb.load) >= ue.packet) {
                 return centerGnb.id;
             }
-            return null; // Will be put in waiting queue for center
+            return null;
         } 
-        else { // MBB UE
-            // Strict behavior for MBB UEs
+        else {
             if (Math.hypot(ue.x - centerGnb.x, ue.y - centerGnb.y) <= MBB_RADIUS) {
-                // Within center radius - only try center
                 if ((centerGnb.capacity - centerGnb.load) >= ue.packet) {
                     return centerGnb.id;
                 }
-                return null; // Will be put in waiting queue for center
+                return null;
             }
             
-            // Outside center radius - find nearest corner with capacity
             const nearestCorner = cornerGnbs
                 .map(gnb => ({
                     ...gnb,
@@ -186,7 +157,7 @@ function selectGnbForUE(ue) {
             if (nearestCorner && (nearestCorner.capacity - nearestCorner.load) >= ue.packet) {
                 return nearestCorner.id;
             }
-            return null; // Will be put in waiting queue for nearest corner
+            return null;
         }
     }
     return null;
@@ -195,14 +166,12 @@ function selectGnbForUE(ue) {
 function step() {
     stepCount++;
     
-    // Reset and calculate current loads
     gnbs.forEach(gnb => gnb.load = 0);
     for (const ueId in connections) {
         const conn = connections[ueId];
         gnbs[conn.gnbId].load += conn.remaining;
     }
 
-    // Process waiting queue
     for (const gnbId in waitingQueue) {
         const queue = waitingQueue[gnbId];
         for (let i = queue.length - 1; i >= 0; i--) {
@@ -220,7 +189,6 @@ function step() {
         }
     }
 
-    // Assign new connections
     ues.forEach(ue => {
         if (!ue.transmitted && !connections[ue.id] && !isInWaitingQueue(ue.id)) {
             const gnbId = selectGnbForUE(ue);
@@ -240,7 +208,6 @@ function step() {
         }
     });
 
-    // Simulate data transmission
     for (const ueId in connections) {
         const conn = connections[ueId];
         const gnb = gnbs[conn.gnbId];
@@ -295,7 +262,6 @@ function draw() {
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, AREA_SIZE, AREA_SIZE);
 
-    // Draw gNBs
     gnbs.forEach(gnb => {
         const loadRatio = gnb.load / gnb.capacity;
         ctx.fillStyle = loadRatio < 0.8 ? "green" : 
@@ -311,12 +277,10 @@ function draw() {
                     gnb.x - 25, gnb.y - 15);
     });
 
-    // Draw UEs
     ues.forEach(ue => {
         const isConnected = connections[ue.id];
         const isWaiting = isInWaitingQueue(ue.id);
         
-        // Different colors for UE types
         if (isConnected) {
             ctx.fillStyle = ue.type === "VOICE" ? "blue" : "purple";
         } else if (isWaiting) {
@@ -332,8 +296,8 @@ function draw() {
         ctx.fill();
         
         const status = isConnected ? `${connections[ue.id].remaining.toFixed(1)}MB` :
-                     isWaiting ? "waiting" :
-                     ue.transmitted ? "done" : "waiting";
+                      isWaiting ? "waiting" :
+                      ue.transmitted ? "done" : "waiting";
         
         ctx.fillStyle = "black";
         ctx.font = "10px Arial";
@@ -349,8 +313,7 @@ function draw() {
         }
     });
 
-    // Draw policy-specific radii (for visualization)
-    if (currentPolicy === "1") { // OFFLOAD
+    if (currentPolicy === "1") {
         gnbs.forEach(gnb => {
             if (!gnb.isCenter) {
                 ctx.strokeStyle = "blue";
@@ -380,11 +343,9 @@ function resetSimulation() {
     draw();
 }
 
-// Initialize simulation
 initEnv();
 draw();
 
-// Add event listener for policy change
 document.getElementById("policySelect").addEventListener("change", function() {
     currentPolicy = this.value;
     resetSimulation();
